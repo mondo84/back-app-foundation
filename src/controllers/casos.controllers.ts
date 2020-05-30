@@ -32,17 +32,24 @@ let getEnMuelle = async (req: Request, res: Response) => {
             complete: true
         });
     } catch (error) {
-        return res.status(500).json({
-            status: 500,
-            complete: false,
-            msj: error.message
-        });
+        return res.status(500).json({ status: 500, complete: false, msj: error.message });
     }
 }
 
 // funcion para buscar por cedula o id
 
 // funcion para guardar
+let postCaso = async (req: Request, res: Response) => {
+  try {
+    const datos = req.body;
+
+    const objConn = await objConexion();
+    await objConn.query(`INSERT INTO casos SET ?`, [datos]);
+    return res.status(200).json({ status: 200, complete: true });
+  } catch (error) {
+    return res.status(500).json({ status: 500, complete: false, msj: error.message });
+  }
+}
 
 // funcion para eliminar
 
@@ -54,4 +61,4 @@ let getEnMuelle = async (req: Request, res: Response) => {
 
 // funcion para vaciar y respaldar las tablas.
 
-export { getCasos, getEnMuelle };
+export { getCasos, getEnMuelle, postCaso };
