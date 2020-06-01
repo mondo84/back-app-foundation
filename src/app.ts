@@ -4,6 +4,7 @@ import cors from 'cors';
 
 // Importacion modulos de rutas
 import objRutaCaso from './rutas/casos.rutas';
+import { objRutasUsu } from './rutas/usuario.rutas';
 
 class App {
 
@@ -23,6 +24,7 @@ class App {
         }
         this.app.use(cors(corsOptions))
         this.app.use('/casos', objRutaCaso);
+        this.app.use('/', objRutasUsu);
     }
 
     private middleware() {
