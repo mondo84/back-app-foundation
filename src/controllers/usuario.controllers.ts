@@ -3,66 +3,80 @@ import objConexion from './../database';
 import { UsuarioI } from '../interfaces/usuraio.interface';
 
 import { from } from 'rxjs';
-import { map, merge } from 'rxjs/operators';
+import { map } from 'rxjs/operators';
 
 import objBcrypt from 'bcryptjs';
 import jwt from 'jsonwebtoken';
 
+const verificaToken = ( req: Request, res: Response) => {
+  const objToken = req.body.tokenData;
+
+  jwt.verify(objToken, 'miClaveSecreta', (err: any, autData: any) => {
+    if (err) {
+      // console.log(err);
+        return res.status(200).json({ validToken: false });
+    } else {
+      // console.log(autData);
+      return res.status(200).json({ validToken: true });
+    }
+  });
+}
+
 let authUser = async (req: Request, res: Response) => {
-    
-    const datos: UsuarioI = req.body;
+
+    const datos: UsuarioI = req.body;   // Obtiene datos de la peticion Request.
     const objConn = await objConexion();
 
-    const objPromesa = validaCedula(objConn, datos.cedula);  // Devuelve promesa.
-    const objObs$ = from(objPromesa);   // Crea observable desde una promesa.
-    objObs$.pipe(
+    // Crea observable desde una promesa.
+    const objObs$ = from(validaCedula(objConn, datos.cedula))
+    .pipe(
         map( x => x[0][0]['cuenta'] )
     )
-    .subscribe({ 
-        next: (x) => { 
+    .subscribe({
+        next: (x) => {
             switch(x) {
                 case 0:
                     // console.log('no validado');
                     return res.status(200).json({auth: false, msg: 'cedula no autenticada'});
                 case 1:
-                    // console.log('cedula validada');
-                    const dat = getDatosUsu(objConn, datos.cedula);
-                    const obs2$ = from(dat);
-                    obs2$.pipe(
+                    // Devuelve promesa y transforma en observable. // console.log('cedula validada');
+                    const obs2$ = from(getDatosUsu(objConn, datos.cedula))
+                    .pipe(
                         map(x => x[0][0])
                     )
                     .subscribe({
-                        next: data => { 
-                            // datos.cedula; Formulario
-                            // const password = data.password; DB
-                            console.log(data);
-                            // Se comparan las claves
-                            const resultP = objBcrypt.compare(datos.password, data.password);
-                            from(resultP).subscribe({
+                        next: data => {
+                            // console.log(data);
+
+                            const resultP = objBcrypt.compare(datos.password, data.password);   // Se comparan las claves. Devuelve promesa.
+                            const obsCompare$ = from(resultP).subscribe({
                                 next: (r) => {
                                     // console.log(r);
+                                    // console.log(`ID validado: ${data.id}`);
                                     if (r) {
                                         const token = jwt.sign({ id: data.id }, 'miClaveSecreta', { expiresIn: 60 * 60 * 24 });
-                                        return res.status(200).json({ cod: 200, auth: true, token });
+                                        return res.status(200).json({ id: data.id, cod: 200, auth: true, token });
                                     } else {
                                         return res.status(200).json({ cod: 200, auth: false });
                                     }
                                 },
                                 error: (e) => {console.log(e.error)},
-                                complete: () => { console.log(`completado 3`) }
+                                complete: () => { console.log(`completado 3`); obsCompare$.unsubscribe }
                             });
+
                         },
                         error: err => { console.log(err.error) },
-                        complete: () => { console.log(`Completado 2`); }
+                        complete: () => { console.log(`Completado 2`); obs2$.unsubscribe}
                     });
-                    
+
                     break;
                 default:
                     // console.log('cedula duplicada');
                     return res.status(500).json({ auth: false, msg: 'Algo anda mal' });
             }
         },
-        error: (e) => console.log(`Error: ${e.error}`)
+        error: (e) => console.log(`Error: ${e.error}`),
+        complete: () => { console.log('Completado 1'); objObs$.unsubscribe }
     });
 }
 
@@ -95,7 +109,7 @@ const createUser = async (req: Request, res: Response) => {
 
                             // Observable anidado 3
                             from(newUser(objConn, objJson)).subscribe({
-                                next: (x) => {  
+                                next: (x) => {
                                     // Se puede registrar el numero de cedula.
                                     return res.status(200).json({ result: x, msg: 'Registro creado'});
                                 },
@@ -122,21 +136,17 @@ const createUser = async (req: Request, res: Response) => {
     });
 }
 
+// ====== Metodos de consulta SQL.
 const validaCedula = async (objConn: any, argCedula: number | string ): Promise<any> => {
-    // const objConn = await objConexion();    // obeto de conexion
-    const objResult = await objConn.query('SELECT COUNT(*) AS cuenta FROM usuario WHERE cedula = ?', [argCedula]);
-    return objResult;
+    return await objConn.query('SELECT COUNT(*) AS cuenta FROM usuario WHERE cedula = ?', [argCedula]);
 }
 
 const getDatosUsu = async (objConn2: any, argCedula: number | string): Promise<any> => {
-    // const objConn2 = await objConexion();    // obeto de conexion
-    const rows = await objConn2.query('SELECT id, password FROM usuario WHERE cedula = ?', [argCedula]);
-    return rows;
+    return await objConn2.query('SELECT id, password FROM usuario WHERE cedula = ?', [argCedula]);
 }
 
 const newUser = async (objConn3: any, argJson: UsuarioI): Promise<any> => {
-    const rows = await objConn3.query('INSERT INTO usuario SET ?', [argJson]);
-    return rows;
+    return await objConn3.query('INSERT INTO usuario SET ?', [argJson]);
 }
 
-export { authUser, createUser };
+export { authUser, createUser, verificaToken};
