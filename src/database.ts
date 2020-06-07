@@ -1,4 +1,4 @@
-/**  
+/**
  * Archivo de conexion con la DB
  */
 // (DRIVER Para conexion con mysql) Devuelve promesa.
