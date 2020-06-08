@@ -118,6 +118,31 @@ const addCaso = async (req: Request, res: Response) => {
 
   const obs$ = from(queryAddCaso(objConn, datos)).subscribe({
     next: (x: any) => {
+      /*
+      // Cuando se abra el caso iniciar un contador de tiempo.
+      // Que se detendra cuando se cierre el caso.
+      const mueveReloj = () => {
+        let nh = 0;
+        let nm = 0;
+        let ns = 0;
+        let cronometro: any;
+
+        cronometro = setInterval( () => {
+          console.log(`${nh}:${nm}:${ns}`);
+          if( ns == 60 ) {
+            ns = 0;
+            nm++;
+
+            if (nm == 60) { nm = 0; }
+          }
+           ns++;
+        },1000);
+      }
+      */
+
+      // const detenerse = () => {
+        // clearInterval(cronometro);
+      // }
       return res.status(200).json({ status: 200, complete: true, result: x });
     },
     error: (err) => {
@@ -126,10 +151,40 @@ const addCaso = async (req: Request, res: Response) => {
     complete: () => { obs$.unsubscribe(); }
   })
 }
-// funcion para respaldar por message
-// funcion para respaldar todo
-// funcion para vaciar y respaldar las tablas.
 
+const addNovedad = async (req: Request, res: Response) => {
+  const objJson = await JSON.parse(req.params.datosToken); // Obtiene id del token recuperado del request.
+  const objConn = await objConexion();
+  console.log('ID del usuario', objJson.id);
+
+  const obs1$ = from(queryIdMyCasoAbierto(objConn, objJson.id)).subscribe({
+    next: (r) => {
+
+        const datos = {
+          id_caso: r[0][0][`id`],
+          descripcion: req.body.descripcion,
+          acpm: req.body.acpm,
+          llanta: req.body.llanta,
+          motor: req.body.motor
+        }
+        console.log(datos);
+
+        const obs2$ = from(queryAddNovedad(objConn, datos)).subscribe({
+          next: (x: any) => {
+            return res.status(200).json({ status: 200, complete: true, result: x });
+          },
+          error: (err) => {
+            return res.status(500).json({ status: 500, complete: false, msj: err.message });
+          },
+          complete: () => { obs2$.unsubscribe(); }
+        })
+    },
+    error: (e) => { console.log(e.error) },
+    complete: () => { obs1$.unsubscribe(); }
+  });
+}
+
+// Consultas SQL...
 const validaEstadoCaso = async (objConn: any, argIdUsu: number | string ): Promise<any> => {
     return await objConn.query('SELECT COUNT(*) AS cuenta FROM casos WHERE id_usu = ? AND estado = 0', [argIdUsu]);
 }
@@ -156,7 +211,8 @@ const queryGetEnMuelle = async (objConn2: any): Promise<any> => {
 
 const queryMyCasoOpen = async (objConn2: any, argId: number | string): Promise<any> => {
     return await objConn2.query(
-      `SELECT u.nombre, u.cedula, c.id, c.placa, c.trailer, c.origen, c.destino, c.estado
+      `SELECT u.nombre, u.cedula, c.id, c.placa, c.trailer, c.origen, c.destino, c.estado,
+       c.create_at, c.modify_at, c.close_at
        FROM casos AS c, usuario AS u
        WHERE (c.id_usu = u.id)
        AND (c.id_usu = ?)
@@ -168,4 +224,12 @@ const queryCloseCaso = async (objConn: any, checked: number | string, argIdCaso:
     `UPDATE casos SET estado = ? WHERE id = ?`, [checked, argIdCaso]);
 }
 
-export { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle, addCaso, validCaso };
+const queryAddNovedad = async (objConn: any, datos: any) => {
+  return await objConn.query(`INSERT INTO novedades SET ?`, [datos]);
+}
+
+const queryIdMyCasoAbierto = async (objConn: any, idUsu: any) => {
+  return await objConn.query(`SELECT id FROM casos WHERE id_usu = ? AND estado = 0`, [idUsu]);
+}
+
+export { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle, addCaso, validCaso, addNovedad };
