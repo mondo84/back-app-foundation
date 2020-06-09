@@ -3,8 +3,8 @@
  */
 
 import { Router } from 'express';  // Modulo de rutas de express.
-
-import { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle, addCaso, validCaso, addNovedad } from './../controllers/casos.controllers';
+import { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle,
+        addCaso, validCaso, addNovedad, getMyNovedad } from './../controllers/casos.controllers';
 import verifyToken from '../middleware/verifyToekn';   // Importa middleware verifica token.
 
 const objRutas = Router();
@@ -17,5 +17,6 @@ objRutas.route('/muelle').get(verifyToken, getEnMuelle);
 // objRutas.route('/:id(\\d+)').get();
 objRutas.route('/').post(verifyToken, addCaso);
 objRutas.route('/addNovedad').post(verifyToken, addNovedad);
+objRutas.route('/getMyNovedad/:id(\\d+)').get(verifyToken, getMyNovedad);
 
 export default objRutas;

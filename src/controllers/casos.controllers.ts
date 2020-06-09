@@ -58,13 +58,9 @@ const getAllCasosOpen = async(req: Request, res: Response) => {
 }
 
 const getEnMuelle = async (req: Request, res: Response) => {
-
-  let objConn = await objConexion();  // conexion a la db
+  const objConn = await objConexion();  // conexion a la db
   const obs$ = from(queryGetEnMuelle(objConn)).subscribe({  // consulta a la db
-    next: (datos) => {
-      return res.status(200).json({ datos: datos, status: 200, complete: true });
-
-    },
+    next: (datos) => { return res.status(200).json({ datos: datos, status: 200, complete: true }); },
     error: (err) => { return res.status(500).json({ status: 500, complete: false, msj: err.message }); },
     complete: () => { console.log(`Completado`); obs$.unsubscribe(); }
   })
@@ -80,26 +76,22 @@ const validCaso = async (req: Request, res: Response) => {
 
   // Crea observable desde una promesa.
   const objObs$ = from(validaEstadoCaso(objConn, idUsuToken.id))
-  .pipe(
-      map( x => x[0][0]['cuenta'] )
-  )
+  .pipe( map( x => x[0][0]['cuenta'] ) )
   .subscribe({
     next: (x) => {
       switch(x) {
         case 0:
-          console.log('0', x);
           // console.log('no validado');
           return res.status(200).json({ hasCaso: false, msg: 'disponible' });
         case 1:
-          console.log('1', x);
           // console.log('no validado');
           return res.status(200).json({ hasCaso: true, msg: 'hay casos pendiente' });
         default:
           return res.status(200).json({ hasCaso: false, msg: 'algo anda mal' });
       }
     },
-    error: () => {},
-    complete: () => {}
+    error: (e) => { console.error(e.message) },
+    complete: () => { console.error(`Completado`); objObs$.unsubscribe(); }
   });
 }
 
@@ -184,7 +176,20 @@ const addNovedad = async (req: Request, res: Response) => {
   });
 }
 
-// Consultas SQL...
+const getMyNovedad = async ( req: Request, res: Response ) => {
+  // console.log(req.params.datosToken);
+  const idCaso = req.params.id; // Recupera id enviado por paramero get.
+  const conn = await objConexion();
+
+  const obs$ = from(queryGetMyNovedad(conn, idCaso)).subscribe({
+    next: (x) => { return res.status(200).json({ datos: x, status: 200, complete: true }); },
+    error: (e) => { return res.status(500).json({ status: 500, complete: false, error: e.message }); },
+    complete: () => { console.log(`completado`); obs$.unsubscribe(); }
+  });
+}
+
+
+// =========================== Consultas SQL...
 const validaEstadoCaso = async (objConn: any, argIdUsu: number | string ): Promise<any> => {
     return await objConn.query('SELECT COUNT(*) AS cuenta FROM casos WHERE id_usu = ? AND estado = 0', [argIdUsu]);
 }
@@ -219,6 +224,7 @@ const queryMyCasoOpen = async (objConn2: any, argId: number | string): Promise<a
        AND (c.estado = 0)`, [argId]);
 }
 
+// NOTA: ==== Agregar la fecha y hora de cierre del caso. (Pendiente)
 const queryCloseCaso = async (objConn: any, checked: number | string, argIdCaso: number | string ): Promise<any> => {
   return await objConn.query(
     `UPDATE casos SET estado = ? WHERE id = ?`, [checked, argIdCaso]);
@@ -232,4 +238,13 @@ const queryIdMyCasoAbierto = async (objConn: any, idUsu: any) => {
   return await objConn.query(`SELECT id FROM casos WHERE id_usu = ? AND estado = 0`, [idUsu]);
 }
 
-export { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle, addCaso, validCaso, addNovedad };
+const queryGetMyNovedad = async (objConn: any, idCaso: any) => {
+  // Consulta por id de usuario y caso abierto = 0.
+  return await objConn.query(`
+    SELECT descripcion, acpm, llanta, motor, created_at, updated_at
+    FROM novedades
+    WHERE id_caso = ? ORDER BY id DESC`,[idCaso]);
+}
+
+
+export { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle, addCaso, validCaso, addNovedad, getMyNovedad };
