@@ -144,6 +144,9 @@ const addCaso = async (req: Request, res: Response) => {
   })
 }
 
+// =============================== //
+// ===== Metodos de Novedades ==== //
+// =============================== //
 const addNovedad = async (req: Request, res: Response) => {
   const objJson = await JSON.parse(req.params.datosToken); // Obtiene id del token recuperado del request.
   const objConn = await objConexion();
@@ -188,8 +191,29 @@ const getMyNovedad = async ( req: Request, res: Response ) => {
   });
 }
 
+const deleteNovedad = async ( req: Request, res: Response ) => {
+  console.log(`Parametros...`);
+  console.log(req.params);
+  const id = req.params.id;
+  const objConn = await objConexion();
 
-// =========================== Consultas SQL...
+  const obs$ = from(queryDeleteNovedad(objConn, id))
+  .subscribe({
+    next: (x) => {
+      console.log(x);
+      return res.status(200).json({ status: 200, complete: true, result: x });
+    },
+    error: (e) => {
+      return res.status(500).json({ status: 500, complete: false, msj: e.message });
+    },
+    complete: () => { console.log(`Completado`); obs$.unsubscribe(); }
+  });
+}
+
+// =================================================== //
+// ================== Consultas SQL... =============== //
+// =================================================== //
+// ====== Consultas Casos.
 const validaEstadoCaso = async (objConn: any, argIdUsu: number | string ): Promise<any> => {
     return await objConn.query('SELECT COUNT(*) AS cuenta FROM casos WHERE id_usu = ? AND estado = 0', [argIdUsu]);
 }
@@ -230,21 +254,33 @@ const queryCloseCaso = async (objConn: any, checked: number | string, argIdCaso:
     `UPDATE casos SET estado = ? WHERE id = ?`, [checked, argIdCaso]);
 }
 
-const queryAddNovedad = async (objConn: any, datos: any) => {
-  return await objConn.query(`INSERT INTO novedades SET ?`, [datos]);
-}
-
 const queryIdMyCasoAbierto = async (objConn: any, idUsu: any) => {
   return await objConn.query(`SELECT id FROM casos WHERE id_usu = ? AND estado = 0`, [idUsu]);
+}
+
+
+// ====== Consultas de Novedades.
+const queryAddNovedad = async (objConn: any, datos: any) => {
+  return await objConn.query(`INSERT INTO novedades SET ?`, [datos]);
 }
 
 const queryGetMyNovedad = async (objConn: any, idCaso: any) => {
   // Consulta por id de usuario y caso abierto = 0.
   return await objConn.query(`
-    SELECT descripcion, acpm, llanta, motor, created_at, updated_at
+    SELECT id, descripcion, acpm, llanta, motor, created_at, updated_at
     FROM novedades
     WHERE id_caso = ? ORDER BY id DESC`,[idCaso]);
 }
 
+const queryDeleteNovedad = async (objConn: any, argId: number | string) => {
+  return await objConn.query(`DELETE FROM novedades WHERE id = ?`, [argId]);
+}
 
-export { getMyCasoOpen, closeCaso, getAllCasosOpen, getEnMuelle, addCaso, validCaso, addNovedad, getMyNovedad };
+const queryUpdateNovedad = async (objConn: any, datos: any) => {
+  const idNovedad = datos.id;
+  return await objConn.query(`UPDATE novedades SET descripcion = ?, acpm = ?, llanta = ?, motor = ?  WHERE id = ? `, [datos, idNovedad])
+}
+
+export {  getMyCasoOpen, closeCaso, getAllCasosOpen,
+          getEnMuelle, addCaso, validCaso,
+          addNovedad, getMyNovedad, deleteNovedad };

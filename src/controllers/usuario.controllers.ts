@@ -136,7 +136,9 @@ const createUser = async (req: Request, res: Response) => {
     });
 }
 
-// ====== Metodos de consulta SQL.
+// ==================================== //
+// ====== Metodos de consulta SQL. ==== //
+// ==================================== //
 const validaCedula = async (objConn: any, argCedula: number | string ): Promise<any> => {
     return await objConn.query('SELECT COUNT(*) AS cuenta FROM usuario WHERE cedula = ?', [argCedula]);
 }
